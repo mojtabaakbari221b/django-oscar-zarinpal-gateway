@@ -1,10 +1,9 @@
 from django.conf import settings
-settings.configure()
 
 DEFAULT_ZARINPAL_CONFIGURATION = {
     'MECHANT_ID' : 'XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX',
     'WEBSERVICE' : 'https://sandbox.zarinpal.com/pg/services/WebGate/wsdl',
-    'DESCRIPTION' : u'ZARINPAL DJANGO OSCAR GATEWAY',
+    'DESCRIPTION' : 'ZARINPAL DJANGO OSCAR GATEWAY',
     'USE_SANDBOX' : True,
 }
 
