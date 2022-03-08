@@ -124,8 +124,8 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
     def get(self, request):
         status_code = 200
         try :
-            self.bridge = Bridge()
             bridge_id = request.GET.get("bridge_id")
+            self.bridge = Bridge()
             order_id, basket , total_incl_tax, total_excl_tax = self.bridge.get_transaction_from_id_returned_by_zarrinpal_request_query(bridge_id)
 
             if check_call_back(request, total_incl_tax) :
@@ -136,32 +136,35 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
             # payment sources to cover the entire order total.
             # Eg. When selecting an allocation off a giftcard but not specifying a
             # bankcard to take the remainder from.
+            logger.error("Order #%s: insufficient payment sources the pay (%s)", order_id, e)
+            logger.exception(e)
             status_code=402
-            self.restore_frozen_basket()
-            
         
         except UserCancelled as e :
             # During many payment flows,
             # the user is able to cancel the process. This should often be treated
             # differently from a payment error, e.g. it might not be appropriate to offer
             # to retry the payment.
-            self.restore_frozen_basket()
-            status_code=402
+            logger.error("Order #%s: user cancelled the pay (%s)", order_id, e)
+            logger.exception(e)
+            status_code=410
+        
+        except (UnableToPlaceOrder, TypeError) as e :
+            # It's possible that something will go wrong while trying to
+            # actually place an order.  Not a good situation to be in, but needs
+            # to be handled gracefully.
+            logger.error("Order #%s: unable to place order while taking payment (%s)", order_id, e)
+            logger.exception(e)
+            status_code = 422
         
         except Exception as e :
             # Unhandled exception - hopefully, you will only ever see this in
             # development.
             logger.error("Order #%s: unhandled exception while taking payment (%s)", order_id, e)
             logger.exception(e)
-            self.restore_frozen_basket()
             status_code=500
 
-        if status_code == 200 :
-            pay_status = ZarrinPayTransaction.AUTHENTICATE
-        else :
-            pay_status = ZarrinPayTransaction.DEFERRED
-        self.change_transaction_pay_type(pay_status)
-        
+        self.change_transaction_pay_type(status=status_code)
         return self.render_tamplate(order_id=order_id, status_code=status_code)
 
     def submit_order(self, order_id, basket , total_incl_tax, total_excl_tax):
@@ -181,21 +184,18 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
 
         # finalising the order into oscar
         logger.info("Order #%s: payment successful, placing order", order_id)
-        try:
-            return self.handle_order_placement(
-                order_number=order_id,
-                basket=basket,
-                order_total=total_incl_tax, 
-                user=self.request.user,
-                **{},
-            )
-        except UnableToPlaceOrder as e:
-            # It's possible that something will go wrong while trying to
-            # actually place an order.  Not a good situation to be in, but needs
-            # to be handled gracefully.
-            logger.error("Order #%s: unable to place order - %s", order_id, e)
-            self.restore_frozen_basket()
-            raise Exception
+        
+        return self.handle_order_placement(
+            order_number=order_id,
+            basket=basket,
+            order_total=total_incl_tax, 
+            user=self.request.user,
+        )
 
-    def change_transaction_pay_type(self, pay_status):
+    def change_transaction_pay_type(self, status):
+        if status == 200 or status == 422 :
+            pay_status = ZarrinPayTransaction.AUTHENTICATE
+        else :
+            self.restore_frozen_basket()
+            pay_status = ZarrinPayTransaction.DEFERRED
         self.bridge.change_transaction_type_after_pay(self.request.GET.get("bridge_id") , pay_status)

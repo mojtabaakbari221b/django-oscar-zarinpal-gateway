@@ -50,6 +50,19 @@
         </div>
     {% endif %}
 
+    {% comment %} UserCancelled {% endcomment %}
+    {% if status == 422 %}
+    <div class="alert alert-dark" role="alert">
+        {% blocktrans %}
+            your process was well in Zarrin Pal .
+            <br>
+            but something went wrong in our site, 
+            <br>
+            Help us improve your experience by sending an error report .
+        {% endblocktrans %}
+    </div>
+    {% endif %}
+
     {% comment %} UnexpectedError {% endcomment %}
     {% if status == 500 %}
         <div class="alert alert-info" role="alert">
