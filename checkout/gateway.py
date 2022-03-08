@@ -12,16 +12,19 @@ from django_oscar_zarinpal_gateway.settings import (
     STARTPAY_URL,
     DOMAIN,
 )
+from django.http import HttpResponseRedirect
 
 def do_pay(request, order_number , order_total):
     # raise GatewayError
     client = Client(WEBSERVICE)
+    # TODO : make valid total price
+    amount = 30000 # order_total.incl_tax
     # if order_total.currency != 'IRR' : # check currency is iranian RIAL
     #     raise InvalidGatewayRequestError("while you use zarinpal-gateway, you shoud use IRR currency")
-    redirect_url = DOMAIN + reverse('checkout:zarinpal-callback') + f'?order_number={order_number}&amount={order_total.incl_tax}'
+    redirect_url = DOMAIN + reverse('checkout:zarinpal-callback') + f'?order_number={order_number}&amount={amount}'
     result = client.service.PaymentRequest(
         MMERCHANT_ID,
-        order_total.excl_tax * 30000,
+        amount,
         f"order number : {order_number}",
         request.user.email,
         None,
@@ -29,7 +32,7 @@ def do_pay(request, order_number , order_total):
     )
     if result.Status == 100:
         url = STARTPAY_URL + result.Authority
-        raise RedirectRequired(url=url)
+        return HttpResponseRedirect(url)
     else:
         raise GatewayError
 
@@ -44,7 +47,6 @@ def check_call_back(request):
             request.GET.get('Authority'),
             amount,
         )
-
         if result.Status == 100 or result.Status == 101 :
             return True
         else:
