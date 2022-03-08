@@ -73,8 +73,8 @@ class PaymentDetailsView(CorePaymentDetailsView):
         # the basket in the session so that we know which basket to thaw if we
         # get an unsuccessful payment response when redirecting to a 3rd party
         # site.
-        self.freeze_basket(basket) #TODO : uncomment this
-        self.checkout_session.set_submitted_basket(basket) #TODO : uncomment this
+        self.freeze_basket(basket)
+        self.checkout_session.set_submitted_basket(basket)
 
         # We define a general error message for when an unanticipated payment
         # error occurs.

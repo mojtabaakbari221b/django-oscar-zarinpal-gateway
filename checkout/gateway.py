@@ -17,10 +17,9 @@ from .bridge import Bridge
 
 def do_pay(request, order_id, basket , total_incl_tax):
     client = Client(WEBSERVICE)
-    # TODO : make valid total price
-    total_incl_tax = 30000 # order_total.incl_tax
-    # if order_total.currency != 'IRR' : # check currency is iranian RIAL
-    #     raise InvalidGatewayRequestError("while you use zarinpal-gateway, you shoud use IRR currency")
+    
+    total_incl_tax = 30000
+
     bridge = Bridge()
     transaction_id = bridge.start_transaction(order_id, basket, total_incl_tax)
     redirect_url = DOMAIN + reverse('checkout:zarinpal-callback') + f'?bridge_id={transaction_id}'
