@@ -1,4 +1,3 @@
-from urllib import request
 from oscar.apps.checkout.views import PaymentDetailsView as CorePaymentDetailsView
 from oscar.apps.checkout.mixins import OrderPlacementMixin
 from django.views import View
