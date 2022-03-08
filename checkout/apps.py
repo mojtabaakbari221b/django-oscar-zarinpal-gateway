@@ -11,6 +11,6 @@ class ZarrinCheckoutConfig(apps.CheckoutConfig):
     def get_urls(self):
         urls = super().get_urls()
         urls += [
-            path('callback/', self.zarinpal_callback.as_view(), name='extra'),
+            path('callback/', self.zarinpal_callback.as_view(), name='zarinpal-callback'),
         ]
         return self.post_process_urls(urls)
