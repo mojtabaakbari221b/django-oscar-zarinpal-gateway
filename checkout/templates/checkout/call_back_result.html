@@ -1,0 +1,69 @@
+{% extends "oscar/checkout/layout.html" %}
+{% load currency_filters %}
+{% load i18n %}
+{% load image_tags %}
+
+{% block title %}
+    {% blocktrans with number=order.number %}
+        Order {{ number }}: confirmation
+    {% endblocktrans %} | {{ block.super }}
+{% endblock title %}
+
+{% block checkout_nav %}
+    {% include 'oscar/checkout/nav.html' with step=5 %}
+{% endblock %}
+
+{% block checkout_title %}
+    {% blocktrans %}
+        Order {{ number }} : confirmation
+    {% endblocktrans %}
+{% endblock %}
+
+
+{% block content %}
+    {% comment %} every thing is OK! {% endcomment %}
+    {% if status == 200 %}
+        <div class="alert alert-success" role="alert">
+            {% blocktrans %}
+                Your order has been placed - your order number is
+                <strong>{{ number }}</strong> .
+            {% endblocktrans %}
+            {% trans "Please make a note of this reference or print this page and quote it in any communication with us regarding your order ." %}
+        </div>
+    {% endif %}
+
+    {% comment %} InsufficientPaymentSources {% endcomment %}
+    {% if status == 402 %} 
+        <div class="alert alert-warning" role="alert">
+            {% blocktrans %}
+                unsucessfull payment in Zarrin Pal .
+            {% endblocktrans %}        
+        </div>
+    {% endif %}
+
+    {% comment %} UserCancelled {% endcomment %}
+    {% if status == 410 %}
+        <div class="alert alert-danger" role="alert">
+            {% blocktrans %}
+                Process Cancelled in Zarrin Pal .
+            {% endblocktrans %}
+        </div>
+    {% endif %}
+
+    {% comment %} UnexpectedError {% endcomment %}
+    {% if status == 500 %}
+        <div class="alert alert-info" role="alert">
+            {% blocktrans %}
+                Oops! Something went wrong !
+                <br>
+                Help us improve your experience by sending an error report .            
+            {% endblocktrans %}
+        </div>
+    {% endif %}
+    
+    <div class="container">
+        <div class="col-12 text-center">
+            <a class="btn btn-outline-secondary col-2" href="/" role="button">Home Page</a>
+        </div>
+    </div>
+{% endblock content %}
