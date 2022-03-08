@@ -1,20 +1,23 @@
+from urllib import request
 from oscar.apps.checkout.views import PaymentDetailsView as CorePaymentDetailsView
 from oscar.apps.checkout.mixins import OrderPlacementMixin
 from django.views import View
-from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils.translation import gettext as _
 from oscar.apps.checkout import signals
+from .bridge import Bridge
 from .gateway import  do_pay, check_call_back
 from oscar.apps.payment import models
+from django.http import HttpResponseRedirect
+from oscar.apps.order.exceptions import (
+    UnableToPlaceOrder,
+)
 from oscar.apps.payment.exceptions import (
     UserCancelled,
     InsufficientPaymentSources,
     RedirectRequired,
-    UnableToTakePayment,
-    PaymentError,
-    GatewayError,
 )
+from .models import ZarrinPayTransaction
 import logging
 logger = logging.getLogger('oscar.checkout')
 
@@ -70,8 +73,8 @@ class PaymentDetailsView(CorePaymentDetailsView):
         # the basket in the session so that we know which basket to thaw if we
         # get an unsuccessful payment response when redirecting to a 3rd party
         # site.
-        # self.freeze_basket(basket) #TODO : uncomment this
-        # self.checkout_session.set_submitted_basket(basket) #TODO : uncomment this
+        self.freeze_basket(basket) #TODO : uncomment this
+        self.checkout_session.set_submitted_basket(basket) #TODO : uncomment this
 
         # We define a general error message for when an unanticipated payment
         # error occurs.
@@ -81,8 +84,13 @@ class PaymentDetailsView(CorePaymentDetailsView):
 
         signals.pre_payment.send_robust(sender=self, view=self)
 
+
         try:
-            return self.handle_payment(order_number, order_total, **payment_kwargs)
+            self.handle_payment(order_number, basket, order_total.excl_tax, **payment_kwargs)
+        except RedirectRequired as e: 
+            # Redirect required (eg ZarrinpalPay)
+            logger.info("Order #%s: redirecting to %s", order_number, e.url)
+            return HttpResponseRedirect(e.url)
         except Exception as e:
             # Unhandled exception - hopefully, you will only ever see this in
             # development...
@@ -94,12 +102,12 @@ class PaymentDetailsView(CorePaymentDetailsView):
                 self.request, error=error_msg, **payment_kwargs)
 
         # signals.post_payment.send_robust(sender=self, view=self)
-    
-    def handle_payment(self, order_number, order_total, **payment_kwargs):
-        return do_pay(self.request , order_number , order_total)
+
+    def handle_payment(self, order_number, basket, total_incl_tax, **payment_kwargs):
+        return do_pay(self.request , order_number, basket , total_incl_tax)
         
 
-class CheckZarrinPalCallBack(View, OrderPlacementMixin):
+class CheckZarrinPalCallBack(OrderPlacementMixin, View):
     template_name = 'checkout/call_back_result.html'
 
     def create_context_for_template(self, order_number, status_code, msg=None,) -> dict:
@@ -109,28 +117,19 @@ class CheckZarrinPalCallBack(View, OrderPlacementMixin):
             "status" : status_code,
         }
 
-    def render_tamplate(self ,order_number ,status_code=200):
-        context = self.create_context_for_template(order_number, status_code)
+    def render_tamplate(self ,order_id ,status_code=200):
+        context = self.create_context_for_template(order_id, status_code)
         return render(self.request, self.template_name , context=context, status=status_code)
     
     def get(self, request):
+        status_code = 200
         try :
-            status_code = 200
-            order_number = request.GET.get("order_number")
-            amount = request.GET.get('amount')
-            if check_call_back(request) :
+            self.bridge = Bridge()
+            bridge_id = request.GET.get("bridge_id")
+            order_id, basket , total_incl_tax, total_excl_tax = self.bridge.get_transaction_from_id_returned_by_zarrinpal_request_query(bridge_id)
 
-                source_type, is_created = models.SourceType.objects.get_or_create(
-                name='ZarrinPal')
-
-                source = source_type.sources.model(
-                    source_type=source_type,
-                    amount_allocated=amount,
-                    currency='IRR',
-                )
-
-                self.add_payment_source(source)
-                self.add_payment_event('Authorised', amount)
+            if check_call_back(request, total_incl_tax) :
+                self.submit_order(order_id, basket , total_incl_tax, total_excl_tax)
               
         except InsufficientPaymentSources as e :
             # Exception for when a user attempts to checkout without specifying enough
@@ -138,20 +137,65 @@ class CheckZarrinPalCallBack(View, OrderPlacementMixin):
             # Eg. When selecting an allocation off a giftcard but not specifying a
             # bankcard to take the remainder from.
             status_code=402
+            self.restore_frozen_basket()
+            
         
         except UserCancelled as e :
             # During many payment flows,
             # the user is able to cancel the process. This should often be treated
             # differently from a payment error, e.g. it might not be appropriate to offer
             # to retry the payment.
+            self.restore_frozen_basket()
             status_code=402
         
         except Exception as e :
             # Unhandled exception - hopefully, you will only ever see this in
             # development.
-            logger.error("Order #%s: unhandled exception while taking payment (%s)", order_number, e)
+            logger.error("Order #%s: unhandled exception while taking payment (%s)", order_id, e)
             logger.exception(e)
+            self.restore_frozen_basket()
             status_code=500
-        
-        return self.render_tamplate(order_number=order_number, status_code=status_code)
 
+        if status_code == 200 :
+            pay_status = ZarrinPayTransaction.AUTHENTICATE
+        else :
+            pay_status = ZarrinPayTransaction.DEFERRED
+        self.change_transaction_pay_type(pay_status)
+        
+        return self.render_tamplate(order_id=order_id, status_code=status_code)
+
+    def submit_order(self, order_id, basket , total_incl_tax, total_excl_tax):
+
+        source_type, is_created = models.SourceType.objects.get_or_create(
+            name='ZarrinPal'
+        )
+    
+        source = models.Source(
+            source_type=source_type,
+            currency='IRR',
+            amount_allocated=total_incl_tax,
+        )
+
+        self.add_payment_source(source)
+        self.add_payment_event('Authorised', total_incl_tax)
+
+        # finalising the order into oscar
+        logger.info("Order #%s: payment successful, placing order", order_id)
+        try:
+            return self.handle_order_placement(
+                order_number=order_id,
+                basket=basket,
+                order_total=total_incl_tax, 
+                user=self.request.user,
+                **{},
+            )
+        except UnableToPlaceOrder as e:
+            # It's possible that something will go wrong while trying to
+            # actually place an order.  Not a good situation to be in, but needs
+            # to be handled gracefully.
+            logger.error("Order #%s: unable to place order - %s", order_id, e)
+            self.restore_frozen_basket()
+            raise Exception
+
+    def change_transaction_pay_type(self, pay_status):
+        self.bridge.change_transaction_type_after_pay(self.request.GET.get("bridge_id") , pay_status)
