@@ -12,40 +12,41 @@ from django_oscar_zarinpal_gateway.settings import (
     STARTPAY_URL,
     DOMAIN,
 )
-from django.http import HttpResponseRedirect
+from .bridge import Bridge
 
-def do_pay(request, order_number , order_total):
-    # raise GatewayError
+
+def do_pay(request, order_id, basket , total_incl_tax):
     client = Client(WEBSERVICE)
     # TODO : make valid total price
-    amount = 30000 # order_total.incl_tax
+    total_incl_tax = 30000 # order_total.incl_tax
     # if order_total.currency != 'IRR' : # check currency is iranian RIAL
     #     raise InvalidGatewayRequestError("while you use zarinpal-gateway, you shoud use IRR currency")
-    redirect_url = DOMAIN + reverse('checkout:zarinpal-callback') + f'?order_number={order_number}&amount={amount}'
+    bridge = Bridge()
+    transaction_id = bridge.start_transaction(order_id, basket, total_incl_tax)
+    redirect_url = DOMAIN + reverse('checkout:zarinpal-callback') + f'?bridge_id={transaction_id}'
     result = client.service.PaymentRequest(
         MMERCHANT_ID,
-        amount,
-        f"order number : {order_number}",
+        total_incl_tax,
+        f"order number : {order_id}",
         request.user.email,
         None,
         redirect_url,
     )
     if result.Status == 100:
         url = STARTPAY_URL + result.Authority
-        return HttpResponseRedirect(url)
+        raise RedirectRequired(url=url)
     else:
         raise GatewayError
 
-def check_call_back(request):
+def check_call_back(request, total_incl_tax):
     if request.GET.get('Status') == 'OK':
         client = Client(WEBSERVICE)
-
-        amount = request.GET.get('amount')
+        total_incl_tax = 30000
         
         result = client.service.PaymentVerification(
             MMERCHANT_ID,
             request.GET.get('Authority'),
-            amount,
+            total_incl_tax,
         )
         if result.Status == 100 or result.Status == 101 :
             return True
