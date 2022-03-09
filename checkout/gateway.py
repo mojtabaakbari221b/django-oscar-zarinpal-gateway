@@ -15,17 +15,15 @@ from django_oscar_zarinpal_gateway.settings import (
 from .bridge import Bridge
 
 
-def do_pay(request, order_id, basket , total_incl_tax):
+def do_pay(request, order_id, basket , total_excl_tax, shipping_address, shipping_method, shipping_charge, billing_address):
     client = Client(WEBSERVICE)
     
-    total_incl_tax = 30000
-
     bridge = Bridge()
-    transaction_id = bridge.start_transaction(order_id, basket, total_incl_tax)
+    transaction_id = bridge.start_transaction(order_id, basket, total_excl_tax)
     redirect_url = DOMAIN + reverse('checkout:zarinpal-callback') + f'?bridge_id={transaction_id}'
     result = client.service.PaymentRequest(
         MMERCHANT_ID,
-        total_incl_tax,
+        total_excl_tax,
         f"order number : {order_id}",
         request.user.email,
         None,
@@ -40,7 +38,6 @@ def do_pay(request, order_id, basket , total_incl_tax):
 def check_call_back(request, total_incl_tax):
     if request.GET.get('Status') == 'OK':
         client = Client(WEBSERVICE)
-        total_incl_tax = 30000
         
         result = client.service.PaymentVerification(
             MMERCHANT_ID,
