@@ -87,7 +87,7 @@ class PaymentDetailsView(CorePaymentDetailsView):
 
         try:
             self.check_currency(order_total.currency)
-            self.handle_payment(order_number, basket, order_total.excl_tax, shipping_address, shipping_method, shipping_charge, billing_address,   **payment_kwargs)
+            self.handle_payment(order_number, basket, order_total, shipping_address, shipping_method, shipping_charge, billing_address,   **payment_kwargs)
         except RedirectRequired as e: 
             # Redirect required (eg ZarrinpalPay)
             logger.info("Order #%s: redirecting to %s", order_number, e.url)
@@ -102,14 +102,16 @@ class PaymentDetailsView(CorePaymentDetailsView):
             return self.render_preview(
                 self.request, error=error_msg, **payment_kwargs)
 
-        # signals.post_payment.send_robust(sender=self, view=self)
-
     def check_currency(self, currency):
         if not currency == 'IRR' :
             raise GatewayError
 
-    def handle_payment(self, order_number, basket, total_excl_tax, shipping_address, shipping_method, shipping_charge, billing_address, **payment_kwargs):
-        return do_pay(self.request , order_number, basket , int(total_excl_tax), shipping_address, shipping_method, shipping_charge, billing_address)
+    def return_total_tax(self, order_total):
+        return int(order_total.excl_tax)
+
+    def handle_payment(self, order_number, basket, order_total, shipping_address, shipping_method, shipping_charge, billing_address, **payment_kwargs):
+        total_excl_tax = self.return_total_tax(order_total)
+        return do_pay(self.request , order_number, basket , total_excl_tax, shipping_address, shipping_method, shipping_charge, billing_address)
         
 
 class CheckZarrinPalCallBack(OrderPlacementMixin, View):
