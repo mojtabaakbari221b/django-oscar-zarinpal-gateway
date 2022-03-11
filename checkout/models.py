@@ -29,7 +29,9 @@ class ZarrinPayTransaction(models.Model):
 
     shipping_address = models.ForeignKey(
         ShippingAddress,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
     )
 
     shipping_method_module = models.TextField(
