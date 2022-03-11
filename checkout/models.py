@@ -1,3 +1,4 @@
+from oscar.apps.order.models import ShippingAddress
 from oscar.apps.checkout.models import *
 from django.db import models
 from oscar.apps.basket.models import Basket
@@ -19,3 +20,7 @@ class ZarrinPayTransaction(models.Model):
     total_excl_tax = models.PositiveBigIntegerField()
     pay_type = models.CharField(choices=PAY_TYPE, default=PANDING, max_length=20)
 
+    shipping_address = models.ForeignKey(ShippingAddress, on_delete=models.CASCADE)
+
+    shipping_method_module = models.TextField(null=True, blank=True)
+    shipping_method_class = models.TextField(null=True, blank=True)
