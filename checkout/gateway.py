@@ -20,7 +20,7 @@ def do_pay(request, order_id, basket , total_excl_tax, shipping_address, shippin
     
     bridge = Bridge()
     transaction_id = bridge.start_transaction(order_id, basket, total_excl_tax, shipping_address, shipping_method)
-    redirect_url = DOMAIN + reverse('checkout:zarinpal-callback') + f'?bridge_id={transaction_id}'
+    redirect_url = DOMAIN + reverse('checkout:zarinpal-callback', args=(transaction_id,))
     result = client.service.PaymentRequest(
         MMERCHANT_ID,
         total_excl_tax,

@@ -138,16 +138,15 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
         context = self.create_context_for_template(order_id, status_code)
         return render(self.request, self.template_name , context=context, status=status_code)
     
-    def get(self, request):
+    def get(self, request, bridge_id, *args, **kwargs):
         status_code = 200
         try :
-            bridge_id = request.GET.get("bridge_id")
             self.bridge = Bridge()
             self.pay_transaction = self.bridge.get_transaction_from_id_returned_by_zarrinpal_request_query(bridge_id)
 
             if check_call_back(request, self.pay_transaction.total_excl_tax) :
                 response =  self.submit_order()
-                self.change_transaction_pay_type(status=status_code)
+                self.change_transaction_pay_type(status=status_code, pay_transaction=self.pay_transaction)
                 return response
               
         except InsufficientPaymentSources as e :
@@ -183,7 +182,7 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
             logger.exception(e)
             status_code=500
 
-        self.change_transaction_pay_type(status=status_code)
+        self.change_transaction_pay_type(status=status_code, pay_transaction=self.pay_transaction)
         return self.render_tamplate(order_id=self.pay_transaction.order_id, status_code=status_code)
 
     def submit_order(self):
@@ -237,7 +236,7 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
             billing_address=None,
         )
 
-    def change_transaction_pay_type(self, status):
+    def change_transaction_pay_type(self, status, pay_transaction):
         if status == 200 :
             pay_status = ZarrinPayTransaction.AUTHENTICATE
         elif status == 422 :
@@ -245,4 +244,4 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
         else :
             self.restore_frozen_basket()
             pay_status = ZarrinPayTransaction.DEFERRED
-        self.bridge.change_transaction_type_after_pay(self.request.GET.get("bridge_id") , pay_status)
+        self.bridge.change_transaction_type_after_pay(self.pay_transaction ,pay_status)

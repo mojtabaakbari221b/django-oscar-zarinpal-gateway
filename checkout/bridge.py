@@ -36,8 +36,7 @@ class Bridge():
     def get_transaction_from_id_returned_by_zarrinpal_request_query(self, id):
         return ZarrinPayTransaction.objects.get(id=id)
     
-    def change_transaction_type_after_pay(self, id, status) :
-        transaction = ZarrinPayTransaction.objects.get(id=id)
-        transaction.pay_type = status
-        transaction.save()
+    def change_transaction_type_after_pay(self, pay_transaction, status) :
+        pay_transaction.pay_type = status
+        pay_transaction.save()
     
