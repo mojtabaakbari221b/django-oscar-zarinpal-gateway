@@ -1,6 +1,5 @@
-from itertools import count
 from oscar.apps.checkout.views import PaymentDetailsView as CorePaymentDetailsView
-from oscar.apps.checkout.mixins import OrderPlacementMixin
+from oscar.apps.checkout.mixins import Basket, OrderPlacementMixin
 from django.views import View
 from django.shortcuts import render
 from django.utils.translation import gettext as _
@@ -86,9 +85,15 @@ class PaymentDetailsView(CorePaymentDetailsView):
         signals.pre_payment.send_robust(sender=self, view=self)
 
         try:
+            # shipping_address = self.create_shipping_address(user, shipping_address)
+            # print(type(shipping_charge.currency))
+            # print(type(order_total))
+            # print(order_total)
+            # raise GatewayError
+            shipping_address.save()
             self.check_currency(order_total.currency)
-            self.handle_payment(order_number, basket, order_total, shipping_address, shipping_method, shipping_charge, billing_address,   **payment_kwargs)
-        except RedirectRequired as e: 
+            self.handle_payment(order_number, basket, order_total, shipping_address, shipping_method,   **payment_kwargs)
+        except RedirectRequired as e:
             # Redirect required (eg ZarrinpalPay)
             logger.info("Order #%s: redirecting to %s", order_number, e.url)
             return HttpResponseRedirect(e.url)
@@ -109,14 +114,19 @@ class PaymentDetailsView(CorePaymentDetailsView):
     def return_total_tax(self, order_total):
         return int(order_total.excl_tax)
 
-    def handle_payment(self, order_number, basket, order_total, shipping_address, shipping_method, shipping_charge, billing_address, **payment_kwargs):
+    def handle_payment(self, order_number, basket, order_total, shipping_address, shipping_method, **payment_kwargs):
         total_excl_tax = self.return_total_tax(order_total)
-        return do_pay(self.request , order_number, basket , total_excl_tax, shipping_address, shipping_method, shipping_charge, billing_address)
-        
-
+        return do_pay(self.request , order_number, basket , total_excl_tax, shipping_address, shipping_method)
+    
 class CheckZarrinPalCallBack(OrderPlacementMixin, View):
     template_name = 'checkout/call_back_result.html'
 
+    def create_shipping_address(self, user, shipping_address):
+        shipping_address = self.bridge.get_shipping_address(self.pay_transaction )
+        if user.is_authenticated:
+            self.update_address_book(user, shipping_address)
+        return shipping_address
+    
     def create_context_for_template(self, order_number, status_code, msg=None,) -> dict:
         return {
             "number" : order_number,
@@ -133,17 +143,19 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
         try :
             bridge_id = request.GET.get("bridge_id")
             self.bridge = Bridge()
-            pay_transaction = self.bridge.get_transaction_from_id_returned_by_zarrinpal_request_query(bridge_id)
+            self.pay_transaction = self.bridge.get_transaction_from_id_returned_by_zarrinpal_request_query(bridge_id)
 
-            if check_call_back(request, pay_transaction.total_excl_tax) :
-                self.submit_order(pay_transaction)
+            if check_call_back(request, self.pay_transaction.total_excl_tax) :
+                response =  self.submit_order()
+                self.change_transaction_pay_type(status=status_code)
+                return response
               
         except InsufficientPaymentSources as e :
             # Exception for when a user attempts to checkout without specifying enough
             # payment sources to cover the entire order total.
             # Eg. When selecting an allocation off a giftcard but not specifying a
             # bankcard to take the remainder from.
-            logger.error("Order #%s: insufficient payment sources the pay (%s)", pay_transaction.order_id, e)
+            logger.error("Order #%s: insufficient payment sources the pay (%s)", self.pay_transaction.order_id, e)
             logger.exception(e)
             status_code=402
         
@@ -152,7 +164,7 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
             # the user is able to cancel the process. This should often be treated
             # differently from a payment error, e.g. it might not be appropriate to offer
             # to retry the payment.
-            logger.error("Order #%s: user cancelled the pay (%s)", pay_transaction.order_id, e)
+            logger.error("Order #%s: user cancelled the pay (%s)", self.pay_transaction.order_id, e)
             logger.exception(e)
             status_code=410
         
@@ -160,21 +172,21 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
             # It's possible that something will go wrong while trying to
             # actually place an order.  Not a good situation to be in, but needs
             # to be handled gracefully.
-            logger.error("Order #%s: unable to place order while taking payment (%s)", pay_transaction.order_id, e)
+            logger.error("Order #%s: unable to place order while taking payment (%s)", self.pay_transaction.order_id, e)
             logger.exception(e)
             status_code = 422
         
         except Exception as e :
             # Unhandled exception - hopefully, you will only ever see this in
             # development.
-            logger.error("Order #%s: unhandled exception while taking payment (%s)", pay_transaction.order_id, e)
+            logger.error("Order #%s: unhandled exception while taking payment (%s)", self.pay_transaction.order_id, e)
             logger.exception(e)
             status_code=500
 
         self.change_transaction_pay_type(status=status_code)
-        return self.render_tamplate(order_id=pay_transaction.order_id, status_code=status_code)
+        return self.render_tamplate(order_id=self.pay_transaction.order_id, status_code=status_code)
 
-    def submit_order(self, pay_transaction):
+    def submit_order(self):
 
         source_type, is_created = models.SourceType.objects.get_or_create(
             name='ZarrinPal'
@@ -183,25 +195,47 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
         source = models.Source(
             source_type=source_type,
             currency='IRR',
-            amount_allocated=pay_transaction.total_excl_tax,
+            amount_allocated=self.pay_transaction.total_excl_tax,
         )
 
         self.add_payment_source(source)
-        self.add_payment_event('Authorised', pay_transaction.total_excl_tax)
+        self.add_payment_event('Authorised', self.pay_transaction.total_excl_tax)
+
+        # from oscar.apps.basket.abstract_models
 
         # finalising the order into oscar
-        logger.info("Order #%s: payment successful, placing order", pay_transaction.order_id)
+        logger.info("Order #%s: payment successful, placing order", self.pay_transaction.order_id)
+
+        from oscar.apps.partner.strategy import Default as DefaultStrategy
+        self.pay_transaction.basket.strategy = DefaultStrategy()
+
+        shipping_method = self.bridge.get_shipping_method_from_db(self.pay_transaction)
+
+        from oscar.core.prices import Price
+        shipping_charge = Price(
+            currency='IRR' ,
+            excl_tax= 0 ,
+            incl_tax= 0,
+            tax= 0,
+        )
+        order_total = Price(
+            currency='IRR' ,
+            excl_tax= self.pay_transaction.total_excl_tax ,
+            incl_tax= self.pay_transaction.total_excl_tax ,
+            tax= 0,
+        )
+        # from oscar.apps.basket.abstract_models
         
-        # return self.handle_order_placement(
-        #     order_number=pay_transaction.order_id,
-        #     basket=pay_transaction.basket,
-        #     order_total=pay_transaction.total_excl_tax, 
-        #     user=self.request.user,
-        #     # shipping_address,
-        #     # shipping_method,
-        #     # shipping_charge,
-        #     billing_address=None,
-        # )
+        return self.handle_order_placement(
+            order_number=self.pay_transaction.order_id,
+            basket=self.pay_transaction.basket,
+            order_total=order_total, 
+            user=self.request.user,
+            shipping_address = self.pay_transaction.shipping_address,
+            shipping_method = shipping_method,
+            shipping_charge = shipping_charge,
+            billing_address=None,
+        )
 
     def change_transaction_pay_type(self, status):
         if status == 200 :
