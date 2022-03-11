@@ -6,8 +6,11 @@ from django.utils.translation import gettext as _
 from oscar.apps.checkout import signals
 from .bridge import Bridge
 from .gateway import  do_pay, check_call_back
+from decimal import Decimal as D
 from oscar.apps.payment import models
 from django.http import HttpResponseRedirect
+from oscar.apps.partner.strategy import Default as DefaultStrategy
+from oscar.core.prices import Price as DefaultPrice
 from oscar.apps.order.exceptions import (
     UnableToPlaceOrder,
 )
@@ -146,7 +149,7 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
 
             if check_call_back(request, self.pay_transaction.total_excl_tax) :
                 response =  self.submit_order()
-                self.change_transaction_pay_type(status=status_code, pay_transaction=self.pay_transaction)
+                self.change_transaction_pay_type(status=status_code)
                 return response
               
         except InsufficientPaymentSources as e :
@@ -182,7 +185,7 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
             logger.exception(e)
             status_code=500
 
-        self.change_transaction_pay_type(status=status_code, pay_transaction=self.pay_transaction)
+        self.change_transaction_pay_type(status=status_code)
         return self.render_tamplate(order_id=self.pay_transaction.order_id, status_code=status_code)
 
     def submit_order(self):
@@ -200,30 +203,29 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
         self.add_payment_source(source)
         self.add_payment_event('Authorised', self.pay_transaction.total_excl_tax)
 
-        # from oscar.apps.basket.abstract_models
-
         # finalising the order into oscar
         logger.info("Order #%s: payment successful, placing order", self.pay_transaction.order_id)
 
-        from oscar.apps.partner.strategy import Default as DefaultStrategy
+        # initial some var. that needed for handle_order_placement
+        # this method added some extra arg. such as user , ...
+        # for more information about this method see official django oscar documentation
+    
         self.pay_transaction.basket.strategy = DefaultStrategy()
 
         shipping_method = self.bridge.get_shipping_method_from_db(self.pay_transaction)
 
-        from oscar.core.prices import Price
-        shipping_charge = Price(
+        shipping_charge = DefaultPrice(
             currency='IRR' ,
-            excl_tax= 0 ,
-            incl_tax= 0,
-            tax= 0,
+            excl_tax= D(0.0) ,
+            incl_tax= D(0.0),
+            tax= D(0.0),
         )
-        order_total = Price(
+        order_total = DefaultPrice(
             currency='IRR' ,
             excl_tax= self.pay_transaction.total_excl_tax ,
             incl_tax= self.pay_transaction.total_excl_tax ,
-            tax= 0,
+            tax= D(0.0),
         )
-        # from oscar.apps.basket.abstract_models
         
         return self.handle_order_placement(
             order_number=self.pay_transaction.order_id,
@@ -236,7 +238,7 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
             billing_address=None,
         )
 
-    def change_transaction_pay_type(self, status, pay_transaction):
+    def change_transaction_pay_type(self, status):
         if status == 200 :
             pay_status = ZarrinPayTransaction.AUTHENTICATE
         elif status == 422 :
