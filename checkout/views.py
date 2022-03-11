@@ -20,6 +20,9 @@ from oscar.apps.payment.exceptions import (
     InsufficientPaymentSources,
     RedirectRequired,
 )
+from ..settings import (
+    ERROR_MSG_UNSECESSFUL_PAGE as ERROR_MSG,
+)
 from .models import ZarrinPayTransaction
 import logging
 logger = logging.getLogger('oscar.checkout')
@@ -79,20 +82,9 @@ class PaymentDetailsView(CorePaymentDetailsView):
         self.freeze_basket(basket)
         self.checkout_session.set_submitted_basket(basket)
 
-        # We define a general error message for when an unanticipated payment
-        # error occurs.
-        error_msg = _("A problem occurred while processing payment for this "
-                      "order - no payment has been taken.  Please "
-                      "contact customer services if this problem persists")
-
         signals.pre_payment.send_robust(sender=self, view=self)
 
         try:
-            # shipping_address = self.create_shipping_address(user, shipping_address)
-            # print(type(shipping_charge.currency))
-            # print(type(order_total))
-            # print(order_total)
-            # raise GatewayError
             shipping_address.save()
             self.check_currency(order_total.currency)
             self.handle_payment(order_number, basket, order_total, shipping_address, shipping_method,   **payment_kwargs)
@@ -108,7 +100,7 @@ class PaymentDetailsView(CorePaymentDetailsView):
                 order_number, e)
             self.restore_frozen_basket()
             return self.render_preview(
-                self.request, error=error_msg, **payment_kwargs)
+                self.request, error=ERROR_MSG, **payment_kwargs)
 
     def check_currency(self, currency):
         if not currency == 'IRR' :
@@ -131,9 +123,10 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
         return shipping_address
     
     def create_context_for_template(self, order_number, status_code, msg=None,) -> dict:
+        from django_oscar_zarinpal_gateway import settings as zarrin_settings
         return {
             "number" : order_number,
-            "msg" : msg,
+            "msg" : getattr(zarrin_settings, f'ZARRIN_{status_code}_PAYMENT_MSG'),
             "status" : status_code,
         }
 
@@ -246,4 +239,7 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
         else :
             self.restore_frozen_basket()
             pay_status = ZarrinPayTransaction.DEFERRED
+            shipping_address = self.pay_transaction.shipping_address
+            self.pay_transaction.shipping_address = None
+            shipping_address.delete()
         self.bridge.change_transaction_type_after_pay(self.pay_transaction ,pay_status)

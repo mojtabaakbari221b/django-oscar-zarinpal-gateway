@@ -21,22 +21,11 @@
 
 
 {% block content %}
-    {% comment %} every thing is OK! {% endcomment %}
-    {% if status == 200 %}
-        <div class="alert alert-success" role="alert">
-            {% blocktrans %}
-                Your order has been placed - your order number is
-                <strong>{{ number }}</strong> .
-            {% endblocktrans %}
-            {% trans "Please make a note of this reference or print this page and quote it in any communication with us regarding your order ." %}
-        </div>
-    {% endif %}
-
     {% comment %} InsufficientPaymentSources {% endcomment %}
     {% if status == 402 %} 
         <div class="alert alert-warning" role="alert">
             {% blocktrans %}
-                unsucessfull payment in Zarrin Pal .
+                {{ msg }}
             {% endblocktrans %}        
         </div>
     {% endif %}
@@ -45,7 +34,7 @@
     {% if status == 410 %}
         <div class="alert alert-danger" role="alert">
             {% blocktrans %}
-                Process Cancelled in Zarrin Pal .
+                {{ msg }}
             {% endblocktrans %}
         </div>
     {% endif %}
@@ -54,11 +43,7 @@
     {% if status == 422 %}
     <div class="alert alert-dark" role="alert">
         {% blocktrans %}
-            your process was well in Zarrin Pal .
-            <br>
-            but something went wrong in our site, 
-            <br>
-            Help us improve your experience by sending an error report .
+            {{ msg }}
         {% endblocktrans %}
     </div>
     {% endif %}
@@ -67,9 +52,7 @@
     {% if status == 500 %}
         <div class="alert alert-info" role="alert">
             {% blocktrans %}
-                Oops! Something went wrong !
-                <br>
-                Help us improve your experience by sending an error report .            
+                {{ msg }}           
             {% endblocktrans %}
         </div>
     {% endif %}
