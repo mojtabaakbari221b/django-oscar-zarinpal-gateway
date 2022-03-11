@@ -16,11 +16,27 @@ class ZarrinPayTransaction(models.Model):
     )
     
     order_id = models.PositiveBigIntegerField()
-    basket = models.ForeignKey(Basket, on_delete=models.CASCADE)
+    basket = models.ForeignKey(
+        Basket,
+        on_delete=models.CASCADE,
+    )
     total_excl_tax = models.PositiveBigIntegerField()
-    pay_type = models.CharField(choices=PAY_TYPE, default=PANDING, max_length=20)
+    pay_type = models.CharField(
+        choices=PAY_TYPE,
+        default=PANDING,
+        max_length=20,
+    )
 
-    shipping_address = models.ForeignKey(ShippingAddress, on_delete=models.CASCADE)
+    shipping_address = models.ForeignKey(
+        ShippingAddress,
+        on_delete=models.CASCADE,
+    )
 
-    shipping_method_module = models.TextField(null=True, blank=True)
-    shipping_method_class = models.TextField(null=True, blank=True)
+    shipping_method_module = models.TextField(
+        null=True,
+        blank=True,
+    )
+    shipping_method_class = models.TextField(
+        null=True,
+        blank=True,
+    )
