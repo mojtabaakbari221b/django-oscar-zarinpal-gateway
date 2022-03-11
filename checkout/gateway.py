@@ -35,14 +35,14 @@ def do_pay(request, order_id, basket , total_excl_tax, shipping_address, shippin
     else:
         raise GatewayError
 
-def check_call_back(request, total_incl_tax):
+def check_call_back(request, total_excl_tax):
     if request.GET.get('Status') == 'OK':
         client = Client(WEBSERVICE)
         
         result = client.service.PaymentVerification(
             MMERCHANT_ID,
             request.GET.get('Authority'),
-            total_incl_tax,
+            total_excl_tax,
         )
         if result.Status == 100 or result.Status == 101 :
             return True
