@@ -42,10 +42,10 @@ Configure the application in settings.py:
 
     .. code-block:: python
 
-    def my_dynamic_value(request, order_number):
-        return f"{order_number} is my dynamic value but i do not need to request. But maybe someone needs it."
+        def my_dynamic_value(request, order_number):
+            return f"{order_number} is my dynamic value but i do not need to request. But maybe someone needs it."
 
-    ZARRIN_INFO_TEXT = my_dynamic_value 
+        ZARRIN_INFO_TEXT = my_dynamic_value 
 
 The following values ​​are for after payment messages :
 
