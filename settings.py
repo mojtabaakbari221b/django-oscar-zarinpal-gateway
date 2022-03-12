@@ -2,13 +2,14 @@ from oscar import defaults
 import logging
 if not getattr(defaults , "OSCAR_DEFAULT_CURRENCY" , None) == 'IRR' :
     logging.error("\nwhen you use django_zarrin_pal for gateway backend, recommended set OSCAR_DEFAULT_CURRENCY to IRR, \
-        or be careful your basket currency should be IRR")
+        or be careful, your basket currency should be IRR")
 
 from django.contrib.sites.models import Site
 DOMAIN = Site.objects.get_current().domain
 
 
 from django.conf import settings
+from django.utils.translation import gettext as _
 
 if getattr(settings, 'ZARRIN_USE_SANDBOX', True) :
     MMERCHANT_ID = 'XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX'
