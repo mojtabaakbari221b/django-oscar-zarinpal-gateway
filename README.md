@@ -9,7 +9,8 @@ under construction ......
 ## TODO
 - [x] make valid total price in gateway.py
 - [x] check currency and reject if is'nt IRR
-- [ ] add oscar zarrinpay in payment-methods
+- [x] add oscar zarrinpay in payment-methods
+- [ ] delete redirect to native payment method in navbar
 - [x] create html message in python code
 - [x] add custom models in admin
 - [x] add doc in code
