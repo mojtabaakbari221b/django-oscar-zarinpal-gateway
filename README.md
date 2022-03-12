@@ -12,8 +12,8 @@ under construction ......
 - [ ] add oscar zarrinpay in payment-methods
 - [x] create html message in python code
 - [x] add custom models in admin
-- [ ] add doc in code
+- [x] add doc in code
 - [ ] add doc in md file
 - [x] solve handle_order_placement conflict on submit order
-
+- [ ] make package and release first stable version
 
