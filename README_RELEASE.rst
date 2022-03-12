@@ -2,7 +2,7 @@
 django-oscar-zarrinpal-gateway
 ====================
 
-Payment gateway integration for `Zarinpal Payments <https://www.zarinpal.com//>`_ in django-oscar_.
+Payment gateway integration for `Zarinpal Payments <https://www.zarinpal.com>`_ in django-oscar_.
 Zarinpal Payments is a large payment gateway based in The I.R. Iran .
 
 .. _django-oscar: https://github.com/django-oscar/django-oscar
@@ -40,8 +40,10 @@ The following values ​​are for after payment messages :
 `ZARRIN_410_PAYMENT_MSG`
     process cancelled in zarrin pal message .
 
-`ZARRIN_420_PAYMENT_MSG`
-    Whether or not to run in testing mode. Defaults to `True`.
+`ZARRIN_422_PAYMENT_MSG`
+    This message is displayed when payment is made correctly but the user's shopping cart is not approved .
+    It is one of the error modes that Django Oscar raises .
+    You can read Django Oscar's document for more information .
 
 `ZARRIN_500_PAYMENT_MSG`
     unexpected error in zarrin pal payment message .
@@ -82,3 +84,10 @@ add 'django_oscar_zarinpal_gateway.checkout' in TEMPLATES['DIRS']
         ],
         ... ,
     ]
+
+run following command :
+
+.. code-block:: python
+
+    python manage.py makemigrations checkout
+    python manage.py migrate
