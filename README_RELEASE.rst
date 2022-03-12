@@ -46,7 +46,8 @@ The following values ​​are for after payment messages :
     You can read Django Oscar's document for more information .
 
 `ZARRIN_500_PAYMENT_MSG`
-    unexpected error in zarrin pal payment message .
+    Do not worry . In this case, the user's shopping cart becomes unpaid. Django Oscar used an interesting phrase in his document : hopefully, you will only ever see this in
+    development...
 
 
 in ``settings.py``:
