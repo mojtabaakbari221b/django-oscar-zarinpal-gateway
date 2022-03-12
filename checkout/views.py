@@ -87,7 +87,7 @@ class PaymentDetailsView(CorePaymentDetailsView):
 
         try:
             self.check_currency(order_total.currency)
-            self.handle_payment(order_number, basket, order_total, **payment_kwargs)
+            self.handle_payment(order_number, basket, order_total, shipping_address, **payment_kwargs)
         except RedirectRequired as e:
             # Redirect required (eg ZarrinpalPay)
             logger.info("Order #%s: redirecting to %s", order_number, e.url)
@@ -109,13 +109,19 @@ class PaymentDetailsView(CorePaymentDetailsView):
     def return_total_tax(self, order_total):
         return int(order_total.excl_tax)
 
-    def handle_payment(self, order_number, basket, order_total, **payment_kwargs):
+    def handle_payment(self, order_number, basket, order_total, shipping_address, **payment_kwargs):
         total_excl_tax = self.return_total_tax(order_total)
-        return do_pay(self.request , order_number, basket , total_excl_tax)
+        return do_pay(self.request , order_number, basket , total_excl_tax, shipping_address)
     
 class CheckZarrinPalCallBack(OrderPlacementMixin, View):
     template_name = 'checkout/call_back_result.html'
-    
+
+    def create_shipping_address(self, user, shipping_address):
+        shipping_address = self.bridge.get_shipping_address(self.pay_transaction )
+        if user.is_authenticated:
+            self.update_address_book(user, shipping_address)
+        return shipping_address
+
     def create_context_for_template(self, order_number, status_code, msg=None,) -> dict:
         from django_oscar_zarinpal_gateway import settings as zarrin_settings
         return {
@@ -129,6 +135,7 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
         return render(self.request, self.template_name , context=context, status=status_code)
     
     def get(self, request, bridge_id, *args, **kwargs):
+        # from oscar.apps.checkout.session
         status_code = 200
         try :
             self.bridge = Bridge()
@@ -202,6 +209,13 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
         # If all is ok with payment, try and place order
         logger.info("Order #%s: payment started, placing order", order_id)
 
+        shipping_charge = DefaultPrice(
+            currency='IRR' ,
+            excl_tax= D(0.0) ,
+            incl_tax= D(0.0),
+            tax= D(0.0),
+        )
+
         return self.handle_order_placement(
             order_number=self.pay_transaction.order_id,
             basket=submission['basket'],
@@ -209,7 +223,7 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
             user=submission['user'],
             shipping_address = ['shipping_address'],
             shipping_method = submission['shipping_method'],
-            shipping_charge = ['shipping_charge'],
+            shipping_charge = shipping_charge,
             billing_address=submission['billing_address'],
             **submission['order_kwargs'],
         )

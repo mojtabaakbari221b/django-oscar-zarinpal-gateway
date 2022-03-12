@@ -26,3 +26,11 @@ class ZarrinPayTransaction(models.Model):
         default=PANDING,
         max_length=20,
     )
+
+    shipping_address = models.ForeignKey(
+        ShippingAddress,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+
