@@ -1,0 +1,30 @@
+{% extends "oscar/checkout/checkout.html" %}
+{% load i18n %}
+
+{% block checkout_title %}{{ form.payment_method.label }}{% endblock %}
+
+{% block checkout_nav %}
+    {% include 'oscar/checkout/nav.html' with step=3 %}
+{% endblock %}
+
+{% block content %}
+    {% if error %}
+        <div class="alert alert-error">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    <form action="" method="post">
+        {% csrf_token %}
+
+        {% if form.payment_method.errors %}{{ form.payment_method.errors }}{% endif %}
+        {% for payment_method in form.payment_method %}
+            <div class="pr-3 pl-3 pb-1 pt-1">
+                {{ payment_method }}
+            </div>
+        {% endfor %}
+        
+        <p><button type="submit" class="btn btn-large btn-primary">{% trans "Continue to confirmation" %}</button>
+
+    </form>
+{% endblock %}

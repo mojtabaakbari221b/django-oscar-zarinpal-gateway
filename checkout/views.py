@@ -1,4 +1,5 @@
 from oscar.apps.checkout.views import PaymentDetailsView as CorePaymentDetailsView
+from oscar.apps.checkout.views import PaymentMethodView as CorePaymentMethodView
 from oscar.apps.checkout.mixins import OrderPlacementMixin
 from django.views import View
 from django.shortcuts import render
@@ -19,19 +20,110 @@ from oscar.apps.payment.exceptions import (
     UserCancelled,
     InsufficientPaymentSources,
     RedirectRequired,
+    PaymentError,
 )
-from ..settings import (
+from django_oscar_zarinpal_gateway.settings import (
     ERROR_MSG_UNSECESSFUL_PAGE as ERROR_MSG,
 )
+from django.views.generic import FormView
+from django.conf import settings
+from django.shortcuts import redirect
+from django.urls import reverse_lazy
 from .models import ZarrinPayTransaction
+from . import forms
 import logging
 logger = logging.getLogger('oscar.checkout')
+
+# Inspired by https://stackoverflow.com/questions/49349883/how-to-add-few-payment-methods-to-django-oscar
+class PaymentMethodView(CorePaymentMethodView, FormView):
+    """
+    View for a user to choose which payment method(s) they want to use.
+
+    This would include setting allocations if payment is to be split
+    between multiple sources. It's not the place for entering sensitive details
+    like bankcard numbers though - that belongs on the payment details view.
+    """
+    template_name = "checkout/payment_method.html"
+    step = 'payment-method'
+    form_class = forms.PaymentMethodForm
+    success_url = reverse_lazy('checkout:payment-details')
+
+    pre_conditions = [
+        'check_basket_is_not_empty',
+        'check_basket_is_valid',
+        'check_user_email_is_captured',
+        'check_shipping_data_is_captured',
+        'check_payment_data_is_captured',
+    ]
+    skip_conditions = ['skip_unless_payment_is_required']
+
+    def get(self, request, *args, **kwargs):
+        # if only single payment method, store that
+        # and then follow default (redirect to preview)
+        # else show payment method choice form
+        if len(settings.OSCAR_PAYMENT_METHODS) == 1:
+            self.checkout_session.pay_by(settings.OSCAR_PAYMENT_METHODS[0][0])
+            return redirect(self.get_success_url())
+        else:
+            return FormView.get(self, request, *args, **kwargs)
+
+    def get_success_url(self, *args, **kwargs):
+        # Redirect to the correct payments page as per the method (different methods may have different views &/or additional views)
+        return reverse_lazy('checkout:preview')
+
+    def get_initial(self):
+        return {
+            'payment_method': self.checkout_session.payment_method(),
+        }
+
+    def form_valid(self, form):
+        # Store payment method in the CheckoutSessionMixin.checkout_session (a CheckoutSessionData object)
+        self.checkout_session.pay_by(form.cleaned_data['payment_method'])
+        return super().form_valid(form)
 
 
 class PaymentDetailsView(CorePaymentDetailsView):
     def submit(self, user, basket, shipping_address, shipping_method,  # noqa (too complex (10))
                shipping_charge, billing_address, order_total,
                payment_kwargs=None, order_kwargs=None, surcharges=None):
+        try :
+            # Taxes must be known at this point
+            assert basket.is_tax_known, (
+                "Basket tax must be set before a user can place an order")
+            assert shipping_charge.is_tax_known, (
+                "Shipping charge tax must be set before a user can place an order")
+
+            # We generate the order number first as this will be used
+            # in payment requests (ie before the order model has been
+            # created).  We also save it in the session for multi-stage
+            # checkouts (e.g. where we redirect to a 3rd party site and place
+            # the order on a different request).
+            order_number = self.generate_order_number(basket)
+            self.checkout_session.set_order_number(order_number)
+
+            method = self.checkout_session.payment_method()
+            if method == 'django_oscar_zarinpal_gateway':
+                return self.handle_zarrin_payment(basket, shipping_address,
+                        order_total, order_number ,
+                    payment_kwargs=payment_kwargs, order_kwargs=order_kwargs)
+            else:
+                raise PaymentError
+        except PaymentError as e :
+            # error on select payment-method
+            logger.exception("Order #%s: you should select django_oscar_zarinpal_gateway for payment method (%s)", order_number, e)
+        except Exception as e :
+            # Unhandled exception - hopefully, you will only ever see this in
+            # development...
+            logger.exception(
+                "Order #%s: unhandled exception while taking payment (%s)", order_number, e)
+            self.restore_frozen_basket()
+        return self.render_preview(
+                self.request, error=ERROR_MSG, **payment_kwargs)
+
+
+    def handle_zarrin_payment(self, basket, shipping_address,
+                order_total, order_number ,
+               payment_kwargs=None, order_kwargs=None):
         """
         Submit a basket for order placement.
 
@@ -58,19 +150,6 @@ class PaymentDetailsView(CorePaymentDetailsView):
         if order_kwargs is None:
             order_kwargs = {}
 
-        # Taxes must be known at this point
-        assert basket.is_tax_known, (
-            "Basket tax must be set before a user can place an order")
-        assert shipping_charge.is_tax_known, (
-            "Shipping charge tax must be set before a user can place an order")
-
-        # We generate the order number first as this will be used
-        # in payment requests (ie before the order model has been
-        # created).  We also save it in the session for multi-stage
-        # checkouts (e.g. where we redirect to a 3rd party site and place
-        # the order on a different request).
-        order_number = self.generate_order_number(basket)
-        self.checkout_session.set_order_number(order_number)
         logger.info("Order #%s: beginning submission process for basket #%d",
                     order_number, basket.id)
 
@@ -91,16 +170,7 @@ class PaymentDetailsView(CorePaymentDetailsView):
             # Redirect required (eg ZarrinpalPay)
             logger.info("Order #%s: redirecting to %s", order_number, e.url)
             return HttpResponseRedirect(e.url)
-        except Exception as e:
-            # Unhandled exception - hopefully, you will only ever see this in
-            # development...
-            logger.exception(
-                "Order #%s: unhandled exception while taking payment (%s)",
-                order_number, e)
-            self.restore_frozen_basket()
-            return self.render_preview(
-                self.request, error=ERROR_MSG, **payment_kwargs)
-
+    
     def check_currency(self, currency):
         if not currency == 'IRR' :
             raise GatewayError
