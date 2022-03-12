@@ -23,29 +23,31 @@ Configuration
 
 Configure the application in settings.py:
 
-`ZARRIN_USE_SANDBOX`
+`ZARRIN_USE_SANDBOX` (optional)
     app use sandbox for payment by default, for disable set this to False.
 
 `ZARRIN_MERCHANT_ID`
     zarrin pal merchand id .
+    If you do not enter a valid value, you will encounter the problem of non-approval .
+    Also, if you do not use the sandbox, you will receive an error if you do not enter this value
 
-`ZARRIN_ERROR_MSG_UNSECESSFUL_PAGE`
+`ZARRIN_ERROR_MSG_UNSECESSFUL_PAGE` (optional)
     this message showed when unexpected error happen before redirect to zarrinpal gateway.
 
 The following values ​​are for after payment messages :
 
-`ZARRIN_402_PAYMENT_MSG`
+`ZARRIN_402_PAYMENT_MSG` (optional)
     unsucessfull payment in zarrin pal message .
 
-`ZARRIN_410_PAYMENT_MSG`
+`ZARRIN_410_PAYMENT_MSG` (optional)
     process cancelled in zarrin pal message .
 
-`ZARRIN_422_PAYMENT_MSG`
+`ZARRIN_422_PAYMENT_MSG` (optional)
     This message is displayed when payment is made correctly but the user's shopping cart is not approved .
     It is one of the error modes that Django Oscar raises .
     You can read Django Oscar's document for more information .
 
-`ZARRIN_500_PAYMENT_MSG`
+`ZARRIN_500_PAYMENT_MSG` (optional)
     Do not worry . In this case, the user's shopping cart becomes unpaid. Django Oscar used an interesting phrase in his document : hopefully, you will only ever see this in
     development...
 
@@ -97,5 +99,12 @@ important points
 -------------
 
 * To use the package, your basket must have its own currency set to IRR.
-* if all the activity of your store is related to Iran, you can set the variable OSCAR_DEFAULT_CURRENCY to IRR,
-You can read Django Oscar's document for more information .
+* if all the activity of your store is related to Iran, you can set the variable OSCAR_DEFAULT_CURRENCY to IRR, You can read Django Oscar's document for more information .
+
+
+Link
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you find a bug or have a question, you can contact me via the link below `mojtaba.akbari.221B@gmail.com`_.
+
+.. _`mojtaba.akbari.221B@gmail.com`: mailto:mojtaba.akbari.221B@gmail.com
