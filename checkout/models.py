@@ -4,6 +4,10 @@ from django.db import models
 from oscar.apps.basket.models import Basket
 
 class ZarrinPayTransaction(models.Model):
+    """
+    Main sagepay transaction model.
+    """
+
     PANDING = 'PAYMENT'
     DEFERRED = 'DEFERRED'
     AUTHENTICATE = 'AUTHENTICATE'

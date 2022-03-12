@@ -9,14 +9,13 @@ DOMAIN = Site.objects.get_current().domain
 
 
 from django.conf import settings
-from django.utils.translation import gettext as _
 
-if getattr(settings, 'ZARRINPAY_USE_SANDBOX', True) :
+if getattr(settings, 'ZARRIN_USE_SANDBOX', True) :
     MMERCHANT_ID = 'XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX'
     WEBSERVICE = 'https://sandbox.zarinpal.com/pg/services/WebGate/wsdl'
     STARTPAY_URL = 'https://sandbox.zarinpal.com/pg/StartPay/'
 else:
-    MMERCHANT_ID = getattr(settings, 'ZARRINPAY_MERCHANT_ID')
+    MMERCHANT_ID = getattr(settings, 'ZARRIN_MERCHANT_ID')
     WEBSERVICE = 'https://zarinpal.com/pg/services/WebGate/wsdl'
     STARTPAY_URL = 'https://zarinpal.com/pg/StartPay/'
 
@@ -25,7 +24,7 @@ else:
 DEFAULT_ERROR_MSG_UNSECESSFUL_PAGE = _("A problem occurred while processing payment for this "
                       "order - no payment has been taken.  Please "
                       "contact customer services if this problem persists")
-ERROR_MSG_UNSECESSFUL_PAGE = getattr(settings, 'ZARRINPAY_ERROR_MSG_UNSECESSFUL_PAGE', DEFAULT_ERROR_MSG_UNSECESSFUL_PAGE)
+ERROR_MSG_UNSECESSFUL_PAGE = getattr(settings, 'ZARRIN_ERROR_MSG_UNSECESSFUL_PAGE', DEFAULT_ERROR_MSG_UNSECESSFUL_PAGE)
 
 # InsufficientPaymentSources
 DEFAULT_402_PAYMENT_MSG = 'unsucessfull payment in zarrin pal .'

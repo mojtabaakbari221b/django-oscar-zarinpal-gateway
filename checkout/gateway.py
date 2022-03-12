@@ -16,6 +16,13 @@ from .bridge import Bridge
 
 
 def do_pay(request, order_id, basket , total_excl_tax, shipping_address):
+    """
+    Handle the communication with zarrinpal server
+    connect to server with MMERCHANT_ID,
+    if MMERCHANT_ID is valid,
+    redirect users to zarrinpal server.
+    """
+
     client = Client(WEBSERVICE)
     
     bridge = Bridge()
@@ -36,6 +43,12 @@ def do_pay(request, order_id, basket , total_excl_tax, shipping_address):
         raise GatewayError
 
 def check_call_back(request, total_excl_tax):
+    """
+    Handle the communication back with zarrinpal server
+    connect to server with Authority that returned by zarrinpal server,
+    returns true mean everything is OK if authority and total_excl_tax is valid.
+    """
+
     if request.GET.get('Status') == 'OK':
         client = Client(WEBSERVICE)
         
