@@ -34,6 +34,19 @@ Configure the application in settings.py:
 `ZARRIN_ERROR_MSG_UNSECESSFUL_PAGE` (optional)
     this message showed when unexpected error happen before redirect to zarrinpal gateway.
 
+`ZARRIN_INFO_TEXT` (optional)
+    the amount you enter here will be displayed to the user when paying in ZarrinPal, You can also pass a function to this variable, 
+    This feature is for you to be able to generate values ​​dynamically. Your function will receive two values :‌ request & order_number .
+
+    consider the following example :
+
+    .. code-block:: python
+
+    def my_dynamic_value(request, order_number):
+        return f"{order_number} is my dynamic value but i do not need to request. But maybe someone needs it."
+
+    ZARRIN_INFO_TEXT = my_dynamic_value 
+
 The following values ​​are for after payment messages :
 
 `ZARRIN_402_PAYMENT_MSG` (optional)

@@ -5,7 +5,7 @@ from oscar.apps.basket.models import Basket
 
 class ZarrinPayTransaction(models.Model):
     """
-    Main sagepay transaction model.
+    Main zarinpal transaction model.
     """
 
     PANDING = 'PAYMENT'

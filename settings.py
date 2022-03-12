@@ -45,3 +45,6 @@ ZARRIN_422_PAYMENT_MSG = getattr(settings, 'ZARRIN_420_PAYMENT_MSG', ZARRIN_422_
 DEFAULT_500_PAYMENT_MSG = 'Oops! Something went wrong !\
                 Help us improve your experience by sending an error report . '
 ZARRIN_500_PAYMENT_MSG = getattr(settings, 'ZARRIN_500_PAYMENT_MSG', DEFAULT_500_PAYMENT_MSG)
+
+DEFAULT_ZARRIN_INFO_TEXT = 'Django Zarin Pal Gateway'
+ZARRIN_INFO_TEXT = getattr(settings, 'ZARRIN_INFO_TEXT', DEFAULT_ZARRIN_INFO_TEXT)

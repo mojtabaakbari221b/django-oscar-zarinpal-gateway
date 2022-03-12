@@ -1,3 +1,4 @@
+from cmath import inf
 from suds.client import Client
 from oscar.apps.payment.exceptions import (
     GatewayError,
@@ -11,6 +12,7 @@ from django_oscar_zarinpal_gateway.settings import (
     MMERCHANT_ID,
     STARTPAY_URL,
     DOMAIN,
+    ZARRIN_INFO_TEXT,
 )
 from .bridge import Bridge
 
@@ -24,6 +26,11 @@ def do_pay(request, order_id, basket , total_excl_tax, shipping_address):
     """
 
     client = Client(WEBSERVICE)
+
+    if callable(ZARRIN_INFO_TEXT) :
+        info = str(ZARRIN_INFO_TEXT(request, order_id))
+    else :
+        info = str(ZARRIN_INFO_TEXT)
     
     bridge = Bridge()
     transaction_id = bridge.start_transaction(order_id, basket, total_excl_tax, shipping_address)
@@ -31,7 +38,7 @@ def do_pay(request, order_id, basket , total_excl_tax, shipping_address):
     result = client.service.PaymentRequest(
         MMERCHANT_ID,
         total_excl_tax,
-        f"order number : {order_id}",
+        info,
         request.user.email,
         None,
         redirect_url,
