@@ -1,5 +1,5 @@
 from oscar.apps.checkout.views import PaymentDetailsView as CorePaymentDetailsView
-from oscar.apps.checkout.mixins import Basket, OrderPlacementMixin
+from oscar.apps.checkout.mixins import OrderPlacementMixin
 from django.views import View
 from django.shortcuts import render
 from django.utils.translation import gettext as _
@@ -9,7 +9,6 @@ from .gateway import  do_pay, check_call_back
 from decimal import Decimal as D
 from oscar.apps.payment import models
 from django.http import HttpResponseRedirect
-from oscar.apps.checkout.session import CheckoutSessionMixin
 from oscar.apps.partner.strategy import Default as DefaultStrategy
 from oscar.core.prices import Price as DefaultPrice
 from oscar.apps.order.exceptions import (
@@ -135,7 +134,6 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
         return render(self.request, self.template_name , context=context, status=status_code)
     
     def get(self, request, bridge_id, *args, **kwargs):
-        # from oscar.apps.checkout.session
         status_code = 200
         try :
             self.bridge = Bridge()
