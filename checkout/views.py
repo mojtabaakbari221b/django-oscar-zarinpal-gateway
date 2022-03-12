@@ -9,6 +9,7 @@ from .gateway import  do_pay, check_call_back
 from decimal import Decimal as D
 from oscar.apps.payment import models
 from django.http import HttpResponseRedirect
+from oscar.apps.checkout.session import CheckoutSessionMixin
 from oscar.apps.partner.strategy import Default as DefaultStrategy
 from oscar.core.prices import Price as DefaultPrice
 from oscar.apps.order.exceptions import (
@@ -85,9 +86,8 @@ class PaymentDetailsView(CorePaymentDetailsView):
         signals.pre_payment.send_robust(sender=self, view=self)
 
         try:
-            shipping_address.save()
             self.check_currency(order_total.currency)
-            self.handle_payment(order_number, basket, order_total, shipping_address, shipping_method,   **payment_kwargs)
+            self.handle_payment(order_number, basket, order_total, **payment_kwargs)
         except RedirectRequired as e:
             # Redirect required (eg ZarrinpalPay)
             logger.info("Order #%s: redirecting to %s", order_number, e.url)
@@ -109,18 +109,12 @@ class PaymentDetailsView(CorePaymentDetailsView):
     def return_total_tax(self, order_total):
         return int(order_total.excl_tax)
 
-    def handle_payment(self, order_number, basket, order_total, shipping_address, shipping_method, **payment_kwargs):
+    def handle_payment(self, order_number, basket, order_total, **payment_kwargs):
         total_excl_tax = self.return_total_tax(order_total)
-        return do_pay(self.request , order_number, basket , total_excl_tax, shipping_address, shipping_method)
+        return do_pay(self.request , order_number, basket , total_excl_tax)
     
 class CheckZarrinPalCallBack(OrderPlacementMixin, View):
     template_name = 'checkout/call_back_result.html'
-
-    def create_shipping_address(self, user, shipping_address):
-        shipping_address = self.bridge.get_shipping_address(self.pay_transaction )
-        if user.is_authenticated:
-            self.update_address_book(user, shipping_address)
-        return shipping_address
     
     def create_context_for_template(self, order_number, status_code, msg=None,) -> dict:
         from django_oscar_zarinpal_gateway import settings as zarrin_settings
@@ -141,7 +135,7 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
             self.pay_transaction = self.bridge.get_transaction_from_id_returned_by_zarrinpal_request_query(bridge_id)
 
             if check_call_back(request, self.pay_transaction.total_excl_tax) :
-                response =  self.submit_order()
+                response =  self.submit_order(**kwargs)
                 self.change_transaction_pay_type(status=status_code)
                 return response
               
@@ -181,7 +175,7 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
         self.change_transaction_pay_type(status=status_code)
         return self.render_tamplate(order_id=self.pay_transaction.order_id, status_code=status_code)
 
-    def submit_order(self):
+    def submit_order(self, **kwargs):
 
         source_type, is_created = models.SourceType.objects.get_or_create(
             name='ZarrinPal'
@@ -199,38 +193,27 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
         # finalising the order into oscar
         logger.info("Order #%s: payment successful, placing order", self.pay_transaction.order_id)
 
-        # initial some var. that needed for handle_order_placement
-        # this method added some extra arg. such as user , ...
-        # for more information about this method see official django oscar documentation
-    
         self.pay_transaction.basket.strategy = DefaultStrategy()
+        submission = self.build_submission(basket=self.pay_transaction.basket)
+        return self._save_order(self.pay_transaction.order_id, submission)
 
-        shipping_method = self.bridge.get_shipping_method_from_db(self.pay_transaction)
+    def _save_order(self, order_id, submission):
+        # Finalize the order that PaymentDetailsView.submit() started
+        # If all is ok with payment, try and place order
+        logger.info("Order #%s: payment started, placing order", order_id)
 
-        shipping_charge = DefaultPrice(
-            currency='IRR' ,
-            excl_tax= D(0.0) ,
-            incl_tax= D(0.0),
-            tax= D(0.0),
-        )
-        order_total = DefaultPrice(
-            currency='IRR' ,
-            excl_tax= self.pay_transaction.total_excl_tax ,
-            incl_tax= self.pay_transaction.total_excl_tax ,
-            tax= D(0.0),
-        )
-        
         return self.handle_order_placement(
             order_number=self.pay_transaction.order_id,
-            basket=self.pay_transaction.basket,
-            order_total=order_total, 
-            user=self.request.user,
-            shipping_address = self.pay_transaction.shipping_address,
-            shipping_method = shipping_method,
-            shipping_charge = shipping_charge,
-            billing_address=None,
+            basket=submission['basket'],
+            order_total=submission['order_total'], 
+            user=submission['user'],
+            shipping_address = ['shipping_address'],
+            shipping_method = submission['shipping_method'],
+            shipping_charge = ['shipping_charge'],
+            billing_address=submission['billing_address'],
+            **submission['order_kwargs'],
         )
-
+    
     def change_transaction_pay_type(self, status):
         if status == 200 :
             pay_status = ZarrinPayTransaction.AUTHENTICATE
@@ -239,7 +222,4 @@ class CheckZarrinPalCallBack(OrderPlacementMixin, View):
         else :
             self.restore_frozen_basket()
             pay_status = ZarrinPayTransaction.DEFERRED
-            shipping_address = self.pay_transaction.shipping_address
-            self.pay_transaction.shipping_address = None
-            shipping_address.delete()
         self.bridge.change_transaction_type_after_pay(self.pay_transaction ,pay_status)

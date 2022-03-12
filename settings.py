@@ -36,10 +36,10 @@ DEFAULT_410_PAYMENT_MSG = 'process cancelled in zarrin pal .'
 ZARRIN_410_PAYMENT_MSG = getattr(settings, 'ZARRIN_410_PAYMENT_MSG', DEFAULT_410_PAYMENT_MSG)
 
 # UnableToPlaceOrder
-DEFAULT_420_PAYMENT_MSG = 'your process was well in zarrin pal .\
+ZARRIN_422_PAYMENT_MSG = 'your process was well in zarrin pal .\
             but something went wrong in our site, \
             Help us improve your experience by sending an error report .'
-ZARRIN_420_PAYMENT_MSG = getattr(settings, 'ZARRIN_420_PAYMENT_MSG', DEFAULT_420_PAYMENT_MSG)
+ZARRIN_422_PAYMENT_MSG = getattr(settings, 'ZARRIN_420_PAYMENT_MSG', ZARRIN_422_PAYMENT_MSG)
 
 # UnexpectedException
 DEFAULT_500_PAYMENT_MSG = 'Oops! Something went wrong !\
