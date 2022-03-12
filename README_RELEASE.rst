@@ -92,3 +92,10 @@ run following command :
 
     python manage.py makemigrations checkout
     python manage.py migrate
+
+important points
+-------------
+
+* To use the package, your basket must have its own currency set to IRR.
+* if all the activity of your store is related to Iran, you can set the variable OSCAR_DEFAULT_CURRENCY to IRR,
+    You can read Django Oscar's document for more information .
