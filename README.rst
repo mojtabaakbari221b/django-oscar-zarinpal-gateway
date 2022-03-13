@@ -15,7 +15,7 @@ Install via pip:
 
 .. code-block:: bash
 
-    pip install django-oscar-zarrinpal-gateway
+    pip install django-oscar-zarinpal-gateway==0.12
 
 
 Configuration
