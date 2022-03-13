@@ -1,5 +1,5 @@
 ====================
-django-oscar-zarrinpal-gateway v0.1
+django-oscar-zarrinpal-gateway v0.12
 ====================
 
 Payment gateway integration for `Zarinpal Payments <https://www.zarinpal.com>`_ in django-oscar_.
@@ -101,25 +101,6 @@ important points
 * To use the package, your basket must have its own currency set to IRR.
 * if all the activity of your store is related to Iran, you can set the variable OSCAR_DEFAULT_CURRENCY to IRR, You can read Django Oscar's document for more information .
 
-TODO AND DO :
--------------
-
-TODO
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-* make package and release first stable version
-
-DO
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-* create html message in python code
-* add custom models in admin
-* add doc in code
-* add doc in md file
-* solve handle_order_placement conflict on submit order
-* make valid total price in gateway.py
-* check currency and reject if is'nt IRR
-* add oscar zarrinpay in payment-methods
-* check logic again, specially redirect to payment-method
-* delete redirect to native payment method in navbar
 
 Link
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
