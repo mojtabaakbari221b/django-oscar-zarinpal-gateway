@@ -1,4 +1,3 @@
-from cmath import inf
 from suds.client import Client
 from oscar.apps.payment.exceptions import (
     GatewayError,
