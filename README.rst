@@ -121,6 +121,7 @@ TODO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 * delete redirect to native payment method in navbar
 * make package and release first stable version
+* check logic again, specially redirect to payment-method
 
 DO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
