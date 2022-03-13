@@ -119,9 +119,7 @@ TODO AND DO :
 
 TODO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-* delete redirect to native payment method in navbar
 * make package and release first stable version
-* check logic again, specially redirect to payment-method
 
 DO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -133,10 +131,12 @@ DO
 * make valid total price in gateway.py
 * check currency and reject if is'nt IRR
 * add oscar zarrinpay in payment-methods
-
+* check logic again, specially redirect to payment-method
+* delete redirect to native payment method in navbar
 
 Link
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Thanks for the inspirations of other packages written, especially https://github.com/udox/oscar-sagepay .
 
 If you find a bug or have a question, you can contact me via the link below `mojtaba.akbari.221B@gmail.com`_.
 
