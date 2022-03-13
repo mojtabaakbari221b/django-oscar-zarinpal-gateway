@@ -6,6 +6,7 @@ from django.shortcuts import render
 from django.utils.translation import gettext as _
 from oscar.apps.checkout import signals
 from .bridge import Bridge
+from .decorators import redirect_payment_detail_to_payment_method
 from .gateway import  do_pay, check_call_back
 from decimal import Decimal as D
 from oscar.apps.payment import models
@@ -61,6 +62,7 @@ class PaymentMethodView(CorePaymentMethodView, FormView):
         # if only single payment method, store that
         # and then follow default (redirect to preview)
         # else show payment method choice form
+        return FormView.get(self, request, *args, **kwargs)
         if len(settings.OSCAR_PAYMENT_METHODS) == 1:
             self.checkout_session.pay_by(settings.OSCAR_PAYMENT_METHODS[0][0])
             return redirect(self.get_success_url())
@@ -83,6 +85,23 @@ class PaymentMethodView(CorePaymentMethodView, FormView):
 
 
 class PaymentDetailsView(CorePaymentDetailsView):
+    template_name = 'checkout/payment_details.html'
+    template_name_preview = 'checkout/preview.html'
+
+    @redirect_payment_detail_to_payment_method
+    def get(self, request, *args, **kwargs):
+        return super(PaymentDetailsView, self).get(request, *args, **kwargs)
+
+    @redirect_payment_detail_to_payment_method
+    def post(self, request, *args, **kwargs):
+        return super(PaymentDetailsView, self).post(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        ctx = super(PaymentDetailsView, self).get_context_data(**kwargs)
+        payment_method = self.checkout_session.payment_method().replace("_" , " ").title()
+        ctx.update({'payment_method': payment_method})
+        return ctx
+
     def submit(self, user, basket, shipping_address, shipping_method,  # noqa (too complex (10))
                shipping_charge, billing_address, order_total,
                payment_kwargs=None, order_kwargs=None, surcharges=None):
