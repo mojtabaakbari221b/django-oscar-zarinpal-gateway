@@ -62,7 +62,6 @@ class PaymentMethodView(CorePaymentMethodView, FormView):
         # if only single payment method, store that
         # and then follow default (redirect to preview)
         # else show payment method choice form
-        return FormView.get(self, request, *args, **kwargs)
         if len(settings.OSCAR_PAYMENT_METHODS) == 1:
             self.checkout_session.pay_by(settings.OSCAR_PAYMENT_METHODS[0][0])
             return redirect(self.get_success_url())
@@ -85,7 +84,6 @@ class PaymentMethodView(CorePaymentMethodView, FormView):
 
 
 class PaymentDetailsView(CorePaymentDetailsView):
-    template_name = 'checkout/payment_details.html'
     template_name_preview = 'checkout/preview.html'
 
     @redirect_payment_detail_to_payment_method
